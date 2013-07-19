@@ -2,6 +2,8 @@ import openpyxl as xl
 import Tkinter as tk
 import os
 import string
+import ConfigParser
+import shutil
 
 class Application(tk.Frame):
     def __init__(self,master=None):
@@ -11,7 +13,75 @@ class Application(tk.Frame):
         self.grid()
         self.createWidgets()
 
+
+    def newVersion(self):
+        if not os.path.isfile('config.xlsx'):
+            workbook = xl.Workbook()
+            worksheet = workbook.get_active_sheet()
+            worksheet.title = 'config'
+            worksheet.cell(row=0,column=0).value = 'Versions'
+            worksheet.cell(row=0,column=1).value = 'Hardware'
+            workbook.save(filename='config.xlsx')
+        try:
+            workbook = xl.load_workbook('config.xlsx')
+        except Exception:
+            errorDialog = Dialog(root,'Cannot load config.xlsx')
+            root.wait_window(errorDialog.top)
+        worksheet = workbook.get_active_sheet()
+        i = 1
+        while worksheet.cell(row=i,column=0).value != None:
+            i += 1
+        enterDialog = AddOption(root)
+        root.wait_window(enterDialog.top)
+        try:
+            worksheet.cell(row=i,column=0).value = newinput
+        except Exception:
+            return
+        workbook.save(filename='config.xlsx')
+
+    def newHardware(self):
+        if not os.path.isfile('config.xlsx'):
+            workbook = xl.Workbook()
+            worksheet = workbook.get_active_sheet()
+            worksheet.title = 'config'
+            worksheet.cell(row=0,column=0).value = 'Versions'
+            worksheet.cell(row=0,column=1).value = 'Hardware'
+            workbook.save(filename='config.xlsx')
+        workbook = xl.load_workbook('config.xlsx')
+        worksheet = workbook.get_active_sheet()
+        i = 1
+        while worksheet.cell(row=i,column=1).value != None:
+            i += 1
+        enterDialog = AddOption(root)
+        root.wait_window(enterDialog.top)
+        try:
+            worksheet.cell(row=i,column=1).value = newinput
+        except Exception:
+            return
+        workbook.save(filename='config.xlsx')
+
+    def export(self):
+        try:
+            shutil.copyfile('Keep Out\\Master.xlsx','Assets.xlsx')
+        except Exception:
+            errorDialog = Dialog(root,'Error: Cannot copy.')
+            root.wait_window(errorDialog.top)
+
+    def about(self):
+        ''
+
     def createWidgets(self):
+        # Dropdown menu ##########################
+        self.mb = tk.Menubutton(self,text='Menu',relief='raised')
+        self.mb.grid(sticky=tk.W,columnspan=3)
+        self.dropdown = tk.Menu(self.mb)
+        self.mb['menu'] = self.dropdown
+        self.dropdown.add_command(label='Versions',command=self.newVersion)
+        self.dropdown.add_command(label='Hardware',command=self.newHardware)
+        self.dropdown.add_command(label='Export',command=self.export)
+        self.dropdown.add_command(label='About',command=self.about)
+        
+        
         # Inputs #################################
         self.inputText = ['ITX ID', 'Version', 'Hardware']
         self.inputs = [tk.StringVar() for i in range(3)]
@@ -21,12 +91,39 @@ class Application(tk.Frame):
                          for i in range(3)]
 
         for i in range(3):
-            self.inputLab[i].grid(row=0,column=i)
-            self.inputBox[i].grid(row=1,column=i)
+            self.inputLab[i].grid(row=1,column=i)
+            self.inputBox[i].grid(row=2,column=i)
 
+        # NEW INPUTS #############################
+        self.AorBstr = tk.StringVar()
+        self.AorB = tk.OptionMenu(self,self.AorBstr,'A','B')
+        self.AorB.grid(row=4,column=0)
+        
+        self.versionstr = tk.StringVar()
+        workbook = xl.load_workbook('config.xlsx')
+        worksheet = workbook.get_active_sheet()
+        i = 1
+        versionopts = []
+        while worksheet.cell(row=i,column=0).value != None:
+            versionopts.append(worksheet.cell(row=i,column=0).value)
+            i += 1
+        self.version = tk.OptionMenu(self,self.versionstr,
+                                     *(tuple(versionopts)))
+        self.version.grid(row=4,column=1)
+        
+        self.hardwarestr = tk.StringVar()
+        i = 1
+        hardwareopts = []
+        while worksheet.cell(row=i,column=1).value != None:
+            hardwareopts.append(worksheet.cell(row=i,column=1).value)
+            i += 1
+        self.hardware = tk.OptionMenu(self,self.hardwarestr,
+                                      *(tuple(hardwareopts)))
+        self.hardware.grid(row=4,column=2)
+        
         # Update button ##########################
         self.updateButton = tk.Button(command=self.update,text='Update')
-        self.updateButton.grid(row=2,column=0,columnspan=3)
+        self.updateButton.grid(row=3,column=0,columnspan=3)
 
     def update(self,event=None):
         # Check if necessary folder exists
@@ -54,11 +151,9 @@ class Application(tk.Frame):
             os.chdir('..')
             return
         if string.lower(itx)[-1] == 'a':
-            self.writeline(1,2,workbook,itx)
-                
+            self.writeline(1,2,workbook,itx)                
         elif string.lower(itx)[-1] == 'b':
             self.writeline(3,4,workbook,itx)
-
         else:
             print 'Invalid input: ITX'
             
@@ -96,7 +191,7 @@ class Application(tk.Frame):
                             string.upper(itx)+' V: '+\
                             str(worksheet.cell(row=i,column=a).value)+' H: '+\
                             str(worksheet.cell(row=i,column=b).value)+'.\n'
-                        successDialog = Success(root,popupstring)
+                        successDialog = Dialog(root,popupstring)
                         root.wait_window(successDialog.top)
                 except Exception:
                     ''
@@ -115,10 +210,12 @@ class Application(tk.Frame):
                             string.upper(itx)+' V: '+\
                             str(worksheet.cell(row=i,column=a).value)+' H: '+\
                             str(worksheet.cell(row=i,column=b).value)+'.\n'
-            successDialog = Success(root,popupstring)
+            successDialog = Dialog(root,popupstring)
             root.wait_window(successDialog.top)
         workbook.save(filename='Master.xlsx')
-
+        os.chdir('..')
+        workbook.save(filename='Copy.xlsx')
+        os.chdir('Keep Out')
 
         
 class Popup:
@@ -139,7 +236,7 @@ class Popup:
         overwrite = doit
         self.top.destroy()
 
-class Success:
+class Dialog:
     def __init__(self, parent, popupstring):
         top = self.top = tk.Toplevel(parent)
         self.myLabel = tk.Label(top, text=popupstring)
@@ -150,6 +247,22 @@ class Success:
         self.closeButton.grid(row=1,column=0)
 
     def send(self):
+        self.top.destroy()
+
+class AddOption:
+    def __init__(self, parent):
+        top = self.top = tk.Toplevel(parent)
+        self.inputText = tk.StringVar()
+        self.inputBox = tk.Entry(top,textvariable=self.inputText)
+        self.inputBox.grid(column=0,row=0)
+
+        self.enter = tk.Button(top, text='Enter',
+                                   command=self.send)
+        self.enter.grid(row=0,column=1)
+
+    def send(self):
+        global newinput
+        newinput = self.inputText.get()
         self.top.destroy()
     
 # MAIN PROCESS
